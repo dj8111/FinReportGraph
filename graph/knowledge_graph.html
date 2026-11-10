@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>玉山投顧研究報告 - 互動式知識圖譜</title>
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+    }
+    #sidebar {
+      width: 360px;
+      background: #1e293b;
+      border-right: 1px solid #334155;
+      display: flex;
+      flex-direction: column;
+      z-index: 10;
+      box-shadow: 4px 0 24px rgba(0,0,0,0.4);
+    }
+    .sidebar-header {
+      padding: 20px;
+      border-bottom: 1px solid #334155;
+      background: #0f172a;
+    }
+    .sidebar-header h1 {
+      font-size: 1.25rem;
+      color: #38bdf8;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .sidebar-header p {
+      font-size: 0.8rem;
+      color: #94a3b8;
+      margin-top: 6px;
+      line-height: 1.4;
+    }
+    .search-box {
+      padding: 12px 20px;
+      border-bottom: 1px solid #334155;
+    }
+    .search-box input {
+      width: 100%;
+      padding: 10px 14px;
+      border-radius: 8px;
+      border: 1px solid #475569;
+      background: #0f172a;
+      color: #f8fafc;
+      font-size: 0.88rem;
+      outline: none;
+      transition: border 0.2s;
+    }
+    .search-box input:focus {
+      border-color: #38bdf8;
+    }
+    .filter-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      padding: 12px 20px;
+      border-bottom: 1px solid #334155;
+    }
+    .pill {
+      font-size: 0.75rem;
+      padding: 4px 10px;
+      border-radius: 12px;
+      cursor: pointer;
+      background: #334155;
+      color: #cbd5e1;
+      transition: all 0.2s;
+      border: 1px solid transparent;
+    }
+    .pill.active {
+      background: #0284c7;
+      color: #ffffff;
+      font-weight: bold;
+    }
+    #details-panel {
+      flex: 1;
+      padding: 20px;
+      overflow-y: auto;
+    }
+    .empty-state {
+      text-align: center;
+      color: #64748b;
+      margin-top: 60px;
+      font-size: 0.9rem;
+      line-height: 1.8;
+    }
+    .detail-card {
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 10px;
+      padding: 18px;
+      animation: fadeIn 0.25s ease-in-out;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .detail-tag {
+      display: inline-block;
+      font-size: 0.72rem;
+      padding: 3px 8px;
+      border-radius: 4px;
+      background: #0369a1;
+      color: #e0f2fe;
+      margin-bottom: 10px;
+      font-weight: 600;
+    }
+    .detail-title {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: #f1f5f9;
+      margin-bottom: 12px;
+      line-height: 1.4;
+    }
+    .detail-summary {
+      background: #1e293b;
+      border-left: 3px solid #38bdf8;
+      padding: 10px 12px;
+      font-size: 0.88rem;
+      color: #e2e8f0;
+      margin-bottom: 14px;
+      border-radius: 0 6px 6px 0;
+      line-height: 1.5;
+    }
+    .detail-desc {
+      font-size: 0.82rem;
+      color: #94a3b8;
+      line-height: 1.5;
+      margin-bottom: 16px;
+    }
+    .detail-btn {
+      display: inline-block;
+      width: 100%;
+      text-align: center;
+      background: linear-gradient(135deg, #0284c7, #2563eb);
+      color: white;
+      text-decoration: none;
+      padding: 10px 14px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      transition: transform 0.15s, box-shadow 0.15s;
+    }
+    .detail-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(2, 132, 199, 0.4);
+    }
+    #chart-container {
+      flex: 1;
+      position: relative;
+    }
+    .legend-panel {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      background: rgba(30, 41, 59, 0.85);
+      backdrop-filter: blur(8px);
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 12px 16px;
+      font-size: 0.8rem;
+      z-index: 5;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 6px;
+    }
+    .legend-item:last-child { margin-bottom: 0; }
+    .legend-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+    }
+  </style>
+</head>
+<body>
+  <div id="sidebar">
+    <div class="sidebar-header">
+      <h1>📈 投顧報告知識圖譜</h1>
+      <p>涵蓋 15 份玉山投顧報告、7 大市場/板塊、5 大核心產業族群與重要個股焦點。</p>
+    </div>
+    <div class="search-box">
+      <input type="text" id="searchInput" placeholder="🔍 搜尋標的、個股 (例：台積電、世芯、費半)..." />
+    </div>
+    <div class="filter-pills">
+      <div class="pill active" data-category="ALL">全部</div>
+      <div class="pill" data-category="市場板塊">市場板塊</div>
+      <div class="pill" data-category="投顧報告">投顧報告</div>
+      <div class="pill" data-category="產業族群">產業族群</div>
+      <div class="pill" data-category="核心標的">核心標的</div>
+      <div class="pill" data-category="投資觀點">投資觀點</div>
+    </div>
+    <div id="details-panel">
+      <div class="empty-state">
+        👆 點擊圖譜中的任意節點<br>即可在此處檢視 30 字摘要、分析觀點<br>並可直接開啟完整 Markdown 文件
+      </div>
+    </div>
+  </div>
+
+  <div id="chart-container">
+    <div class="legend-panel">
+      <div class="legend-item"><div class="legend-dot" style="background:#1976D2;"></div> 市場板塊 (7)</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#7B1FA2;"></div> 投顧報告 (15)</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#388E3C;"></div> 產業族群 (5)</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#F57C00;"></div> 核心標的/個股 (45+)</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#D32F2F;"></div> 投資觀點/主題 (6)</div>
+    </div>
+    <div id="main" style="width: 100%; height: 100%;"></div>
+  </div>
+
+  <script>
+    const graphData = {"categories": [{"name": "市場板塊", "color": "#1976D2"}, {"name": "投顧報告", "color": "#7B1FA2"}, {"name": "產業族群", "color": "#388E3C"}, {"name": "核心標的", "color": "#F57C00"}, {"name": "投資觀點", "color": "#D32F2F"}], "nodes": [{"id": "mkt_tw", "name": "台股市場", "category": "市場板塊", "group": 0, "value": 35, "description": "涵蓋加權指數、OTC、期權與當沖籌碼", "link": ""}, {"id": "mkt_us", "name": "美股市場", "category": "市場板塊", "group": 0, "value": 35, "description": "涵蓋美股四大指數、科技巨頭與美債", "link": ""}, {"id": "mkt_jp", "name": "日股市場", "category": "市場板塊", "group": 0, "value": 30, "description": "日經225、東證指數與日系半導體設備", "link": ""}, {"id": "mkt_hk_cn", "name": "港陸市場", "category": "市場板塊", "group": 0, "value": 30, "description": "恆生指數、上證指數與大中華供應鏈", "link": ""}, {"id": "mkt_macro", "name": "全球總經", "category": "市場板塊", "group": 0, "value": 32, "description": "利率、通膨、匯市與跨資產配置", "link": ""}, {"id": "mkt_etf", "name": "ETF資產", "category": "市場板塊", "group": 0, "value": 30, "description": "國內外市值型、主題型、槓桿反向ETF", "link": ""}, {"id": "mkt_ind", "name": "焦點產業", "category": "市場板塊", "group": 0, "value": 32, "description": "光通訊CPO、塑化原料、先進封裝", "link": ""}, {"id": "ind_semi", "name": "半導體與先進封裝", "category": "產業族群", "group": 2, "value": 25, "description": "2nm/3nm製程、CoWoS、HBM與IC設計", "link": ""}, {"id": "ind_optical", "name": "光通訊與CPO", "category": "產業族群", "group": 2, "value": 25, "description": "800G/1.6T光收發模組、矽光子與化合物半導體磊晶", "link": ""}, {"id": "ind_chemical", "name": "塑化原物料", "category": "產業族群", "group": 2, "value": 22, "description": "乙烯、丙烯、VCM、PVC與PP利差受惠", "link": ""}, {"id": "ind_ai_server", "name": "AI伺服器與儲存", "category": "產業族群", "group": 2, "value": 24, "description": "AI ASIC機櫃、高階儲存系統與機殼整合", "link": ""}, {"id": "ind_finance", "name": "期權與籌碼衍生品", "category": "產業族群", "group": 2, "value": 20, "description": "台指期、選擇權未平倉與當日沖銷流動性", "link": ""}, {"id": "rep_20261109_玉山投顧_ETF交易追蹤", "name": "玉山投顧 ETF交易追蹤", "category": "投顧報告", "group": 1, "value": 26, "description": "台股急跌後反彈，市值型承壓，資金轉進反向與債券ETF。", "link": "markdown/20261109_玉山投顧_ETF交易追蹤.md"}, {"id": "tck_0050", "name": "0050", "category": "核心標的", "group": 3, "value": 16, "description": "提及於報告：玉山投顧 ETF交易追蹤", "link": "markdown/20261109_玉山投顧_ETF交易追蹤.md"}, {"id": "tck_009816", "name": "009816", "category": "核心標的", "group": 3, "value": 16, "description": "提及於報告：玉山投顧 ETF交易追蹤", "link": "markdown/20261109_玉山投顧_ETF交易追蹤.md"}, {"id": "tck_00685L", "name": "00685L", "category": "核心標的", "group": 3, "value": 16, "description": "提及於報告：玉山投顧 ETF交易追蹤", "link": "markdown/20261109_玉山投顧_ETF交易追蹤.md"}, {"id": "tck_00631L", "name": "00631L", "category": "核心標的", "group": 3, "value": 16, "description": "提及於報告：玉山投顧 ETF交易追蹤", "link": "markdown/20261109_玉山投顧_ETF交易追蹤.md"}, {"id": "tck_00632R", "name": "00632R", "category": "核心標的", "group": 3, "value": 16, "description": "提及於報告：玉山投顧 ETF交易追蹤", "link": "markdown/20261109_玉山投顧_ETF交易追蹤.md"}, {"id": "tck_2330台積電", "name": "2330台積電", "category": "核心標的", "group": 3, "value": 16, "description": "提及於報告：玉山投顧 ETF交易追蹤", "link": "markdown/20261109_玉山投顧_ETF交易追蹤.md"}, {"id": "rep_20261109_玉山投顧_全球股債匯市暨重點產業週報", "name": "玉山投顧 全球股債匯市暨重點產業週報", "category": "投顧報告", "group": 1, "value": 26, "description": "全球股債震盪，美債殖利率升，科技回檔而防禦性資產抗跌。", "link": "markdown/20261109_玉山投顧_全球股債匯市暨重點產業週報.md"}, {"id": "tck_道瓊", "name": "道瓊", "category": "核心標的", "group": 3, "value": 16, "description": "提及於報告：玉山投顧 全球股債匯市暨重點產業週報", "link": "markdown/20261109_玉山投顧_全球股債匯市暨重點產業週報.md"}, {"id": "tck_S_P500", "name": "S&P500", "category": "核心標的", "group": 3, "value": 16, "description": "提及於報告：玉山投顧 全球股債匯市暨重點產業週報", "link": "markdown/20261109_玉山投顧_全球股債匯市暨重點產業週報.md"}, {"id": "tck_NASDAQ", "name": "NASDAQ", "category": "核心標的", "group": 3, "value": 16, "description": "提及於報告：玉山投顧 全球股債匯市暨重點產業週報", "link": "markdown/20261109_玉山投顧_全球股債匯市暨重點產業週報.md"}, {"id": "tck_美國10年期公債", "name": "美國10年期公債", "category": "核心標的", "group": 3, "value": 16, "description": "提及於報告：玉山投顧 全球股債匯市暨重點產業週報", "link": "markdown/20261109_玉山投顧_全球股債匯市暨重點產業週報.md"}, {"id": "tck_美元指數", "name": "美元指數", "category": "核心標的", "group": 3, "value": 16, "description": "提及於報告：玉山投顧 全球股債匯市暨重點產業週報", "link": "markdown/20261109_玉山投顧_全球股債匯市暨重點產業週報.md"}, {"id": "rep_20261109_玉山投顧_台股(含期權)盤後分析", "name": "玉山投顧 台股(含期權)盤後分析", "category": "投顧報告", "group": 1, "value": 26, "description": "國安基金與限空令激勵台股大漲千點重返4萬大關，期指翻多。", "link": "markdown/20261109_玉山投顧_台股(含期權)盤後分析.md"}, {"id": "tck_加權指數", "name": "加權指數", "category": "核心標的", "group": 3, "value": 16, "description": "提及於報告：玉山投顧 台股(含期權)盤後分析", "link": "markdown/20261109_玉山投顧_台股(含期權)盤後分析.md"}, {"id": "tck_OTC指數", "name": "OTC指數", "category": "核心標的", "group": 3, "value": 16, "description": "提及於報告：玉山投顧 台股(含期權)盤後分析", "link": "markdown/20261109_玉山投顧_台股(含期權)盤後分析.md"}, {"id": "tck_台指期", "name": "台指期", "category": "核心標的", "group": 3, "value": 16, "description": "提及於報告：玉山投顧 台股(含期權)盤後分析", "link": "markdown/20261109_玉山投顧_台股(含期權)盤後分析.md"}, {"id": "tck_電子期", "name": "電子期", "category": "核心標的", "group": 3, "value": 16, "description": "提及於報告：玉山投顧 台股(含期權)盤後分析", "link": "markdown/20261109_玉山投顧_台股(含期權)盤後分析.md"}, {"id": "tck_三大法人", "name": "三大法人", "category": "核心標的", "group": 3, "value": 16, "description": "提及於報告：玉山投顧 台股(含期權)盤後分析", "link": "markdown/20261109_玉山投顧_台股(含期權)盤後分析.md"}, {"id": "rep_20261109_玉山投顧_市場快訊_簡評中國10月CPI、PPI", "name": "玉山投顧 市場快訊 簡評中國10月CPI、PPI", "category": "投顧報告", "group": 1, "value": 26, "description": "中國10月CPI降至0.7%、PPI擴至5.7%，內需疲弱。", "link": "markdown/20261109_玉山投顧_市場快訊_簡評中國10月CPI、PPI.md"}, {"id": "tck_中國CPI", "name": "中國CPI", "category": "核心標的", "group": 3, "value": 16, "description": "提及於報告：玉山投顧 市場快訊 簡評中國10月CPI、PPI", "link": "markdown/20261109_玉山投顧_市場快訊_簡評中國10月CPI、PPI.md"}, {"id": "tck_中國PPI", "name": "中國PPI", "category": "核心標的", "group": 3, "value": 16, "description": "提及於報告：玉山投顧 市場快訊 簡評中國10月CPI、PPI", "link": "markdown/20261109_玉山投顧_市場快訊_簡評中國10月CPI、PPI.md"}, {"id": "tck_核心通膨", "name": "核心通膨", "category": "核心標的", "group": 3, "value": 16, "description": "提及於報告：玉山投顧 市場快訊 簡評中國10月CPI、PPI", "link": "markdown/20261109_玉山投顧_市場快訊_簡評中國10月CPI、PPI.md"}, {"id": "tck_人行貨幣政策", "name": "人行貨幣政策", "category": "核心標的", "group": 3, "value": 16, "description": "提及於報告：玉山投顧 市場快訊 簡評中國10月CPI、PPI", "link": "markdown/20261109_玉山投顧_市場快訊_簡評中國10月CPI、PPI.md"}, {"id": "rep_20261109_玉山投顧_複委託ETF週報", "name": "玉山投顧 複委託ETF週報", "category": "投顧報告", "group": 1, "value": 26, "description": "海外科技ETF重挫，SMH週跌逾11%，資金轉進公用與美債。", "link": "markdown/20261109_玉山投顧_複委託ETF週報.md"}, {"id": "tck_SMH", "name": "SMH", "category": "核心標的", "group": 3, "value": 16, "description": "提及於報告：玉山投顧 複委託ETF週報", "link": "markdown/20261109_玉山投顧_複委託ETF週報.md"}, {"id": "tck_SOXX", "name": "SOXX", "category": "核心標的", "group": 3, "value": 16, "description": "提及於報告：玉山投顧 複委託ETF週報", "link": "markdown/20261109_玉山投顧_複委託ETF週報.md"}, {"id": "tck_QQQ", "name": "QQQ", "category": "核心標的", "group": 3, "value": 16, "description": "提及於報告：玉山投顧 複委託ETF週報", "link": "markdown/20261109_玉山投顧_複委託ETF週報.md"}, {"id": "tck_SPY", "name": "SPY", "category": "核心標的", "group": 3, "value": 16, "description": "提及於報告：玉山投顧 複委託ETF週報", "link": "markdown/20261109_玉山投顧_複委託ETF週報.md"}, {"id": "tck_XLE", "name": "XLE", "category": "核心標的", "group": 3, "value": 16, "description": "提及於報告：玉山投顧 複委託ETF週報", "link": "markdown/20261109_玉山投顧_複委託ETF週報.md"}, {"id": "tck_TLT", "name": "TLT", "category": "核心標的", "group": 3, "value": 16, "description": "提及於報告：玉山投顧 複委託ETF週報", "link": "markdown/20261109_玉山投顧_複委託ETF週報.md"}, {"id": "rep_20261109_短線焦點產業_光通訊相關族群", "name": "短線焦點產業 光通訊相關族群", "category": "投顧報告", "group": 1, "value": 26, "description": "AI需求帶動光通訊升級，全新、聯亞、聯鈞受惠CPO商機。", "link": "markdown/20261109_短線焦點產業_光通訊相關族群.md"}, {"id": "tck_全新_2455", "name": "全新(2455)", "category": "核心標的", "group": 3, "value": 16, "description": "提及於報告：短線焦點產業 光通訊相關族群", "link": "markdown/20261109_短線焦點產業_光通訊相關族群.md"}, {"id": "tck_IET_KY_4971", "name": "IET-KY(4971)", "category": "核心標的", "group": 3, "value": 16, "description": "提及於報告：短線焦點產業 光通訊相關族群", "link": "markdown/20261109_短線焦點產業_光通訊相關族群.md"}, {"id": "tck_環宇_KY_4991", "name": "環宇-KY(4991)", "category": "核心標的", "group": 3, "value": 16, "description": "提及於報告：短線焦點產業 光通訊相關族群", "link": "markdown/20261109_短線焦點產業_光通訊相關族群.md"}, {"id": "tck_聯亞_3081", "name": "聯亞(3081)", "category": "核心標的", "group": 3, "value": 16, "description": "提及於報告：短線焦點產業 光通訊相關族群", "link": "markdown/20261109_短線焦點產業_光通訊相關族群.md"}, {"id": "tck_光聖_6442", "name": "光聖(6442)", "category": "核心標的", "group": 3, "value": 16, "description": "提及於報告：短線焦點產業 光通訊相關族群", "link": "markdown/20261109_短線焦點產業_光通訊相關族群.md"}, {"id": "tck_聯鈞_3450", "name": "聯鈞(3450)", "category": "核心標的", "group": 3, "value": 16, "description": "提及於報告：短線焦點產業 光通訊相關族群", "link": "markdown/20261109_短線焦點產業_光通訊相關族群.md"}, {"id": "tck_華星光_4979", "name": "華星光(4979)", "category": "核心標的", "group": 3, "value": 16, "description": "提及於報告：短線焦點產業 光通訊相關族群", "link": "markdown/20261109_短線焦點產業_光通訊相關族群.md"}, {"id": "rep_20261110_玉山投顧_十月份台股交易結構追蹤", "name": "玉山投顧 十月份台股交易結構追蹤", "category": "投顧報告", "group": 1, "value": 26, "description": "10月大盤成交額增至18.5兆，週轉率升，散戶開戶續創新高。", "link": "markdown/20261110_玉山投顧_十月份台股交易結構追蹤.md"}, {"id": "tck_市場週轉率", "name": "市場週轉率", "category": "核心標的", "group": 3, "value": 16, "description": "提及於報告：玉山投顧 十月份台股交易結構追蹤", "link": "markdown/20261110_玉山投顧_十月份台股交易結構追蹤.md"}, {"id": "tck_開戶人數", "name": "開戶人數", "category": "核心標的", "group": 3, "value": 16, "description": "提及於報告：玉山投顧 十月份台股交易結構追蹤", "link": "markdown/20261110_玉山投顧_十月份台股交易結構追蹤.md"}, {"id": "tck_外資買賣", "name": "外資買賣", "category": "核心標的", "group": 3, "value": 16, "description": "提及於報告：玉山投顧 十月份台股交易結構追蹤", "link": "markdown/20261110_玉山投顧_十月份台股交易結構追蹤.md"}, {"id": "tck_投信動向", "name": "投信動向", "category": "核心標的", "group": 3, "value": 16, "description": "提及於報告：玉山投顧 十月份台股交易結構追蹤", "link": "markdown/20261110_玉山投顧_十月份台股交易結構追蹤.md"}, {"id": "tck_自然人散戶", "name": "自然人散戶", "category": "核心標的", "group": 3, "value": 16, "description": "提及於報告：玉山投顧 十月份台股交易結構追蹤", "link": "markdown/20261110_玉山投顧_十月份台股交易結構追蹤.md"}, {"id": "rep_20261110_玉山投顧_台股晨訊", "name": "玉山投顧 台股晨訊", "category": "投顧報告", "group": 1, "value": 26, "description": "費半強彈帶動台股暴漲1960點收復4萬點，塑膠電子領軍。", "link": "markdown/20261110_玉山投顧_台股晨訊.md"}, {"id": "tck_台積電_2330", "name": "台積電(2330)", "category": "核心標的", "group": 3, "value": 16, "description": "提及於報告：玉山投顧 台股晨訊", "link": "markdown/20261110_玉山投顧_台股晨訊.md"}, {"id": "tck_融資餘額", "name": "融資餘額", "category": "核心標的", "group": 3, "value": 16, "description": "提及於報告：玉山投顧 台股晨訊", "link": "markdown/20261110_玉山投顧_台股晨訊.md"}, {"id": "tck_外資賣超", "name": "外資賣超", "category": "核心標的", "group": 3, "value": 16, "description": "提及於報告：玉山投顧 台股晨訊", "link": "markdown/20261110_玉山投顧_台股晨訊.md"}, {"id": "tck_塑膠股", "name": "塑膠股", "category": "核心標的", "group": 3, "value": 16, "description": "提及於報告：玉山投顧 台股晨訊", "link": "markdown/20261110_玉山投顧_台股晨訊.md"}, {"id": "tck_電子權值", "name": "電子權值", "category": "核心標的", "group": 3, "value": 16, "description": "提及於報告：玉山投顧 台股晨訊", "link": "markdown/20261110_玉山投顧_台股晨訊.md"}, {"id": "rep_20261110_玉山投顧_台股當沖速報", "name": "玉山投顧 台股當沖速報", "category": "投顧報告", "group": 1, "value": 26, "description": "大盤強彈近2千點，當沖量占24.8%、成交值占比逾42%。", "link": "markdown/20261110_玉山投顧_台股當沖速報.md"}, {"id": "tck_當沖熱門標的", "name": "當沖熱門標的", "category": "核心標的", "group": 3, "value": 16, "description": "提及於報告：玉山投顧 台股當沖速報", "link": "markdown/20261110_玉山投顧_台股當沖速報.md"}, {"id": "tck_當沖週轉率", "name": "當沖週轉率", "category": "核心標的", "group": 3, "value": 16, "description": "提及於報告：玉山投顧 台股當沖速報", "link": "markdown/20261110_玉山投顧_台股當沖速報.md"}, {"id": "tck_當沖成交值", "name": "當沖成交值", "category": "核心標的", "group": 3, "value": 16, "description": "提及於報告：玉山投顧 台股當沖速報", "link": "markdown/20261110_玉山投顧_台股當沖速報.md"}, {"id": "rep_20261110_玉山投顧_塑化產品報價與利差週報", "name": "玉山投顧 塑化產品報價與利差週報", "category": "投顧報告", "group": 1, "value": 26, "description": "上游乙烯抗跌，下游PP價揚利差擴大，台塑營運相對受惠。", "link": "markdown/20261110_玉山投顧_塑化產品報價與利差週報.md"}, {"id": "tck_台塑_1301", "name": "台塑(1301)", "category": "核心標的", "group": 3, "value": 16, "description": "提及於報告：玉山投顧 塑化產品報價與利差週報", "link": "markdown/20261110_玉山投顧_塑化產品報價與利差週報.md"}, {"id": "tck_乙烯", "name": "乙烯", "category": "核心標的", "group": 3, "value": 16, "description": "提及於報告：玉山投顧 塑化產品報價與利差週報", "link": "markdown/20261110_玉山投顧_塑化產品報價與利差週報.md"}, {"id": "tck_丙烯", "name": "丙烯", "category": "核心標的", "group": 3, "value": 16, "description": "提及於報告：玉山投顧 塑化產品報價與利差週報", "link": "markdown/20261110_玉山投顧_塑化產品報價與利差週報.md"}, {"id": "tck_VCM", "name": "VCM", "category": "核心標的", "group": 3, "value": 16, "description": "提及於報告：玉山投顧 塑化產品報價與利差週報", "link": "markdown/20261110_玉山投顧_塑化產品報價與利差週報.md"}, {"id": "tck_PVC", "name": "PVC", "category": "核心標的", "group": 3, "value": 16, "description": "提及於報告：玉山投顧 塑化產品報價與利差週報", "link": "markdown/20261110_玉山投顧_塑化產品報價與利差週報.md"}, {"id": "tck_PP", "name": "PP", "category": "核心標的", "group": 3, "value": 16, "description": "提及於報告：玉山投顧 塑化產品報價與利差週報", "link": "markdown/20261110_玉山投顧_塑化產品報價與利差週報.md"}, {"id": "rep_20261110_玉山投顧_日股晨訊", "name": "玉山投顧 日股晨訊", "category": "投顧報告", "group": 1, "value": 26, "description": "日經大漲1340點收58775點，東證收復季線，半導體領漲。", "link": "markdown/20261110_玉山投顧_日股晨訊.md"}, {"id": "tck_日經225", "name": "日經225", "category": "核心標的", "group": 3, "value": 16, "description": "提及於報告：玉山投顧 日股晨訊", "link": "markdown/20261110_玉山投顧_日股晨訊.md"}, {"id": "tck_東證指數", "name": "東證指數", "category": "核心標的", "group": 3, "value": 16, "description": "提及於報告：玉山投顧 日股晨訊", "link": "markdown/20261110_玉山投顧_日股晨訊.md"}, {"id": "tck_索尼_Sony", "name": "索尼(Sony)", "category": "核心標的", "group": 3, "value": 16, "description": "提及於報告：玉山投顧 日股晨訊", "link": "markdown/20261110_玉山投顧_日股晨訊.md"}, {"id": "tck_日立製作所", "name": "日立製作所", "category": "核心標的", "group": 3, "value": 16, "description": "提及於報告：玉山投顧 日股晨訊", "link": "markdown/20261110_玉山投顧_日股晨訊.md"}, {"id": "tck_KokusaiElectric", "name": "KokusaiElectric", "category": "核心標的", "group": 3, "value": 16, "description": "提及於報告：玉山投顧 日股晨訊", "link": "markdown/20261110_玉山投顧_日股晨訊.md"}, {"id": "rep_20261110_玉山投顧_港股晨訊", "name": "玉山投顧 港股晨訊", "category": "投顧報告", "group": 1, "value": 26, "description": "恆生指數微跌收24448點區間震盪，上證收紅觀望政策。", "link": "markdown/20261110_玉山投顧_港股晨訊.md"}, {"id": "tck_恆生指數", "name": "恆生指數", "category": "核心標的", "group": 3, "value": 16, "description": "提及於報告：玉山投顧 港股晨訊", "link": "markdown/20261110_玉山投顧_港股晨訊.md"}, {"id": "tck_恆生國企", "name": "恆生國企", "category": "核心標的", "group": 3, "value": 16, "description": "提及於報告：玉山投顧 港股晨訊", "link": "markdown/20261110_玉山投顧_港股晨訊.md"}, {"id": "tck_上證指數", "name": "上證指數", "category": "核心標的", "group": 3, "value": 16, "description": "提及於報告：玉山投顧 港股晨訊", "link": "markdown/20261110_玉山投顧_港股晨訊.md"}, {"id": "tck_滬深300", "name": "滬深300", "category": "核心標的", "group": 3, "value": 16, "description": "提及於報告：玉山投顧 港股晨訊", "link": "markdown/20261110_玉山投顧_港股晨訊.md"}, {"id": "tck_長鑫存儲_CXMT", "name": "長鑫存儲(CXMT)", "category": "核心標的", "group": 3, "value": 16, "description": "提及於報告：玉山投顧 港股晨訊", "link": "markdown/20261110_玉山投顧_港股晨訊.md"}, {"id": "tck_韋爾股份", "name": "韋爾股份", "category": "核心標的", "group": 3, "value": 16, "description": "提及於報告：玉山投顧 港股晨訊", "link": "markdown/20261110_玉山投顧_港股晨訊.md"}, {"id": "rep_20261110_玉山投顧_研究報告_8081致新_中立_維持", "name": "玉山投顧 研究報告 8081致新 中立 維持", "category": "投顧報告", "group": 1, "value": 26, "description": "致新PMIC競爭大，NB需求平穩，維持中立與目標價270。", "link": "markdown/20261110_玉山投顧_研究報告_8081致新_中立_維持.md"}, {"id": "tck_致新_8081", "name": "致新(8081)", "category": "核心標的", "group": 3, "value": 16, "description": "提及於報告：玉山投顧 研究報告 8081致新 中立 維持", "link": "markdown/20261110_玉山投顧_研究報告_8081致新_中立_維持.md"}, {"id": "tck_電源管理IC_PMIC", "name": "電源管理IC(PMIC)", "category": "核心標的", "group": 3, "value": 16, "description": "提及於報告：玉山投顧 研究報告 8081致新 中立 維持", "link": "markdown/20261110_玉山投顧_研究報告_8081致新_中立_維持.md"}, {"id": "tck_PC_NB應用", "name": "PC/NB應用", "category": "核心標的", "group": 3, "value": 16, "description": "提及於報告：玉山投顧 研究報告 8081致新 中立 維持", "link": "markdown/20261110_玉山投顧_研究報告_8081致新_中立_維持.md"}, {"id": "tck_毛利率", "name": "毛利率", "category": "核心標的", "group": 3, "value": 16, "description": "提及於報告：玉山投顧 研究報告 8081致新 中立 維持", "link": "markdown/20261110_玉山投顧_研究報告_8081致新_中立_維持.md"}, {"id": "tck_目標價270元", "name": "目標價270元", "category": "核心標的", "group": 3, "value": 16, "description": "提及於報告：玉山投顧 研究報告 8081致新 中立 維持", "link": "markdown/20261110_玉山投顧_研究報告_8081致新_中立_維持.md"}, {"id": "rep_20261110_玉山投顧_美股晨訊", "name": "玉山投顧 美股晨訊", "category": "投顧報告", "group": 1, "value": 26, "description": "費半狂飆6.9%、那指漲2.7%，科技巨頭領軍報復性反彈。", "link": "markdown/20261110_玉山投顧_美股晨訊.md"}, {"id": "tck_道瓊工業", "name": "道瓊工業", "category": "核心標的", "group": 3, "value": 16, "description": "提及於報告：玉山投顧 美股晨訊", "link": "markdown/20261110_玉山投顧_美股晨訊.md"}, {"id": "tck_費城半導體", "name": "費城半導體", "category": "核心標的", "group": 3, "value": 16, "description": "提及於報告：玉山投顧 美股晨訊", "link": "markdown/20261110_玉山投顧_美股晨訊.md"}, {"id": "tck_蘋果_AAPL", "name": "蘋果(AAPL)", "category": "核心標的", "group": 3, "value": 16, "description": "提及於報告：玉山投顧 美股晨訊", "link": "markdown/20261110_玉山投顧_美股晨訊.md"}, {"id": "tck_輝達_NVDA", "name": "輝達(NVDA)", "category": "核心標的", "group": 3, "value": 16, "description": "提及於報告：玉山投顧 美股晨訊", "link": "markdown/20261110_玉山投顧_美股晨訊.md"}, {"id": "tck_微軟_MSFT", "name": "微軟(MSFT)", "category": "核心標的", "group": 3, "value": 16, "description": "提及於報告：玉山投顧 美股晨訊", "link": "markdown/20261110_玉山投顧_美股晨訊.md"}, {"id": "rep_20261110台股_投資快訊_今日五檔焦點股", "name": "台股投資快訊 今日五檔焦點股", "category": "投顧報告", "group": 1, "value": 26, "description": "世芯、營邦、聯發科、中砂、群聯獲利看增，技術面轉強反彈。", "link": "markdown/20261110台股_投資快訊_今日五檔焦點股.md"}, {"id": "tck_世芯_KY_3661", "name": "世芯-KY(3661)", "category": "核心標的", "group": 3, "value": 16, "description": "提及於報告：台股投資快訊 今日五檔焦點股", "link": "markdown/20261110台股_投資快訊_今日五檔焦點股.md"}, {"id": "tck_營邦_3693", "name": "營邦(3693)", "category": "核心標的", "group": 3, "value": 16, "description": "提及於報告：台股投資快訊 今日五檔焦點股", "link": "markdown/20261110台股_投資快訊_今日五檔焦點股.md"}, {"id": "tck_聯發科_2454", "name": "聯發科(2454)", "category": "核心標的", "group": 3, "value": 16, "description": "提及於報告：台股投資快訊 今日五檔焦點股", "link": "markdown/20261110台股_投資快訊_今日五檔焦點股.md"}, {"id": "tck_中砂_1560", "name": "中砂(1560)", "category": "核心標的", "group": 3, "value": 16, "description": "提及於報告：台股投資快訊 今日五檔焦點股", "link": "markdown/20261110台股_投資快訊_今日五檔焦點股.md"}, {"id": "tck_群聯_8299", "name": "群聯(8299)", "category": "核心標的", "group": 3, "value": 16, "description": "提及於報告：台股投資快訊 今日五檔焦點股", "link": "markdown/20261110台股_投資快訊_今日五檔焦點股.md"}, {"id": "thm_nsf", "name": "國安基金與限空令", "category": "投資觀點", "group": 4, "value": 22, "description": "政策利多激勵台股自4萬點強彈1960點", "link": ""}, {"id": "thm_2nm_3nm", "name": "2nm/3nm先進製程", "category": "投資觀點", "group": 4, "value": 22, "description": "台積電擴產帶動世芯、中砂、聯發科", "link": ""}, {"id": "thm_cpo", "name": "CPO與800G光模組", "category": "投資觀點", "group": 4, "value": 22, "description": "AI資料中心算力激增帶動光通訊傳輸升級", "link": ""}, {"id": "thm_dt_heat", "name": "台股當沖熱度升溫", "category": "投資觀點", "group": 4, "value": 20, "description": "當沖成交值占比逾42%，散戶開戶續創新高", "link": ""}, {"id": "thm_us_bounce", "name": "費半報復性強彈", "category": "投資觀點", "group": 4, "value": 20, "description": "費半狂飆6.9%，科技股短線利空出盡翻多", "link": ""}, {"id": "thm_cn_deflation", "name": "中國通膨剪刀差", "category": "投資觀點", "group": 4, "value": 20, "description": "CPI回落至0.7%、PPI擴至5.7%，反映內需偏弱", "link": ""}], "links": [{"source": "mkt_ind", "target": "ind_semi", "relation": "包含產業", "description": ""}, {"source": "mkt_tw", "target": "ind_semi", "relation": "台股核心供應鏈", "description": ""}, {"source": "mkt_ind", "target": "ind_optical", "relation": "包含產業", "description": ""}, {"source": "mkt_tw", "target": "ind_optical", "relation": "台股核心供應鏈", "description": ""}, {"source": "mkt_ind", "target": "ind_chemical", "relation": "包含產業", "description": ""}, {"source": "mkt_ind", "target": "ind_ai_server", "relation": "包含產業", "description": ""}, {"source": "mkt_tw", "target": "ind_ai_server", "relation": "台股核心供應鏈", "description": ""}, {"source": "mkt_tw", "target": "ind_finance", "relation": "交易機制", "description": ""}, {"source": "mkt_tw", "target": "rep_20261109_玉山投顧_ETF交易追蹤", "relation": "涵蓋報告", "description": ""}, {"source": "mkt_etf", "target": "rep_20261109_玉山投顧_ETF交易追蹤", "relation": "涵蓋報告", "description": ""}, {"source": "rep_20261109_玉山投顧_ETF交易追蹤", "target": "tck_0050", "relation": "研究分析", "description": "摘要：台股急跌後反彈，市值型承壓，資金轉進反向與債券ETF。"}, {"source": "tck_0050", "target": "mkt_etf", "relation": "資產類型", "description": ""}, {"source": "rep_20261109_玉山投顧_ETF交易追蹤", "target": "tck_009816", "relation": "研究分析", "description": "摘要：台股急跌後反彈，市值型承壓，資金轉進反向與債券ETF。"}, {"source": "tck_009816", "target": "mkt_etf", "relation": "資產類型", "description": ""}, {"source": "rep_20261109_玉山投顧_ETF交易追蹤", "target": "tck_00685L", "relation": "研究分析", "description": "摘要：台股急跌後反彈，市值型承壓，資金轉進反向與債券ETF。"}, {"source": "tck_00685L", "target": "mkt_etf", "relation": "資產類型", "description": ""}, {"source": "rep_20261109_玉山投顧_ETF交易追蹤", "target": "tck_00631L", "relation": "研究分析", "description": "摘要：台股急跌後反彈，市值型承壓，資金轉進反向與債券ETF。"}, {"source": "tck_00631L", "target": "mkt_etf", "relation": "資產類型", "description": ""}, {"source": "rep_20261109_玉山投顧_ETF交易追蹤", "target": "tck_00632R", "relation": "研究分析", "description": "摘要：台股急跌後反彈，市值型承壓，資金轉進反向與債券ETF。"}, {"source": "tck_00632R", "target": "mkt_etf", "relation": "資產類型", "description": ""}, {"source": "rep_20261109_玉山投顧_ETF交易追蹤", "target": "tck_2330台積電", "relation": "研究分析", "description": "摘要：台股急跌後反彈，市值型承壓，資金轉進反向與債券ETF。"}, {"source": "tck_2330台積電", "target": "ind_semi", "relation": "產業歸屬", "description": ""}, {"source": "mkt_macro", "target": "rep_20261109_玉山投顧_全球股債匯市暨重點產業週報", "relation": "涵蓋報告", "description": ""}, {"source": "rep_20261109_玉山投顧_全球股債匯市暨重點產業週報", "target": "tck_道瓊", "relation": "研究分析", "description": "摘要：全球股債震盪，美債殖利率升，科技回檔而防禦性資產抗跌。"}, {"source": "rep_20261109_玉山投顧_全球股債匯市暨重點產業週報", "target": "tck_S_P500", "relation": "研究分析", "description": "摘要：全球股債震盪，美債殖利率升，科技回檔而防禦性資產抗跌。"}, {"source": "rep_20261109_玉山投顧_全球股債匯市暨重點產業週報", "target": "tck_NASDAQ", "relation": "研究分析", "description": "摘要：全球股債震盪，美債殖利率升，科技回檔而防禦性資產抗跌。"}, {"source": "rep_20261109_玉山投顧_全球股債匯市暨重點產業週報", "target": "tck_美國10年期公債", "relation": "研究分析", "description": "摘要：全球股債震盪，美債殖利率升，科技回檔而防禦性資產抗跌。"}, {"source": "rep_20261109_玉山投顧_全球股債匯市暨重點產業週報", "target": "tck_美元指數", "relation": "研究分析", "description": "摘要：全球股債震盪，美債殖利率升，科技回檔而防禦性資產抗跌。"}, {"source": "mkt_tw", "target": "rep_20261109_玉山投顧_台股(含期權)盤後分析", "relation": "涵蓋報告", "description": ""}, {"source": "rep_20261109_玉山投顧_台股(含期權)盤後分析", "target": "tck_加權指數", "relation": "研究分析", "description": "摘要：國安基金與限空令激勵台股大漲千點重返4萬大關，期指翻多。"}, {"source": "rep_20261109_玉山投顧_台股(含期權)盤後分析", "target": "tck_OTC指數", "relation": "研究分析", "description": "摘要：國安基金與限空令激勵台股大漲千點重返4萬大關，期指翻多。"}, {"source": "rep_20261109_玉山投顧_台股(含期權)盤後分析", "target": "tck_台指期", "relation": "研究分析", "description": "摘要：國安基金與限空令激勵台股大漲千點重返4萬大關，期指翻多。"}, {"source": "rep_20261109_玉山投顧_台股(含期權)盤後分析", "target": "tck_電子期", "relation": "研究分析", "description": "摘要：國安基金與限空令激勵台股大漲千點重返4萬大關，期指翻多。"}, {"source": "rep_20261109_玉山投顧_台股(含期權)盤後分析", "target": "tck_三大法人", "relation": "研究分析", "description": "摘要：國安基金與限空令激勵台股大漲千點重返4萬大關，期指翻多。"}, {"source": "mkt_hk_cn", "target": "rep_20261109_玉山投顧_市場快訊_簡評中國10月CPI、PPI", "relation": "涵蓋報告", "description": ""}, {"source": "mkt_macro", "target": "rep_20261109_玉山投顧_市場快訊_簡評中國10月CPI、PPI", "relation": "涵蓋報告", "description": ""}, {"source": "rep_20261109_玉山投顧_市場快訊_簡評中國10月CPI、PPI", "target": "tck_中國CPI", "relation": "研究分析", "description": "摘要：中國10月CPI降至0.7%、PPI擴至5.7%，內需疲弱。"}, {"source": "rep_20261109_玉山投顧_市場快訊_簡評中國10月CPI、PPI", "target": "tck_中國PPI", "relation": "研究分析", "description": "摘要：中國10月CPI降至0.7%、PPI擴至5.7%，內需疲弱。"}, {"source": "tck_中國PPI", "target": "ind_chemical", "relation": "產業歸屬", "description": ""}, {"source": "rep_20261109_玉山投顧_市場快訊_簡評中國10月CPI、PPI", "target": "tck_核心通膨", "relation": "研究分析", "description": "摘要：中國10月CPI降至0.7%、PPI擴至5.7%，內需疲弱。"}, {"source": "rep_20261109_玉山投顧_市場快訊_簡評中國10月CPI、PPI", "target": "tck_人行貨幣政策", "relation": "研究分析", "description": "摘要：中國10月CPI降至0.7%、PPI擴至5.7%，內需疲弱。"}, {"source": "mkt_us", "target": "rep_20261109_玉山投顧_複委託ETF週報", "relation": "涵蓋報告", "description": ""}, {"source": "mkt_etf", "target": "rep_20261109_玉山投顧_複委託ETF週報", "relation": "涵蓋報告", "description": ""}, {"source": "rep_20261109_玉山投顧_複委託ETF週報", "target": "tck_SMH", "relation": "研究分析", "description": "摘要：海外科技ETF重挫，SMH週跌逾11%，資金轉進公用與美債。"}, {"source": "tck_SMH", "target": "ind_semi", "relation": "產業歸屬", "description": ""}, {"source": "rep_20261109_玉山投顧_複委託ETF週報", "target": "tck_SOXX", "relation": "研究分析", "description": "摘要：海外科技ETF重挫，SMH週跌逾11%，資金轉進公用與美債。"}, {"source": "tck_SOXX", "target": "ind_semi", "relation": "產業歸屬", "description": ""}, {"source": "rep_20261109_玉山投顧_複委託ETF週報", "target": "tck_QQQ", "relation": "研究分析", "description": "摘要：海外科技ETF重挫，SMH週跌逾11%，資金轉進公用與美債。"}, {"source": "tck_QQQ", "target": "mkt_etf", "relation": "資產類型", "description": ""}, {"source": "rep_20261109_玉山投顧_複委託ETF週報", "target": "tck_SPY", "relation": "研究分析", "description": "摘要：海外科技ETF重挫，SMH週跌逾11%，資金轉進公用與美債。"}, {"source": "tck_SPY", "target": "mkt_etf", "relation": "資產類型", "description": ""}, {"source": "rep_20261109_玉山投顧_複委託ETF週報", "target": "tck_XLE", "relation": "研究分析", "description": "摘要：海外科技ETF重挫，SMH週跌逾11%，資金轉進公用與美債。"}, {"source": "rep_20261109_玉山投顧_複委託ETF週報", "target": "tck_TLT", "relation": "研究分析", "description": "摘要：海外科技ETF重挫，SMH週跌逾11%，資金轉進公用與美債。"}, {"source": "tck_TLT", "target": "mkt_etf", "relation": "資產類型", "description": ""}, {"source": "mkt_tw", "target": "rep_20261109_短線焦點產業_光通訊相關族群", "relation": "涵蓋報告", "description": ""}, {"source": "rep_20261109_短線焦點產業_光通訊相關族群", "target": "tck_全新_2455", "relation": "研究分析", "description": "摘要：AI需求帶動光通訊升級，全新、聯亞、聯鈞受惠CPO商機。"}, {"source": "tck_全新_2455", "target": "ind_optical", "relation": "產業歸屬", "description": ""}, {"source": "rep_20261109_短線焦點產業_光通訊相關族群", "target": "tck_IET_KY_4971", "relation": "研究分析", "description": "摘要：AI需求帶動光通訊升級，全新、聯亞、聯鈞受惠CPO商機。"}, {"source": "tck_IET_KY_4971", "target": "ind_optical", "relation": "產業歸屬", "description": ""}, {"source": "rep_20261109_短線焦點產業_光通訊相關族群", "target": "tck_環宇_KY_4991", "relation": "研究分析", "description": "摘要：AI需求帶動光通訊升級，全新、聯亞、聯鈞受惠CPO商機。"}, {"source": "tck_環宇_KY_4991", "target": "ind_optical", "relation": "產業歸屬", "description": ""}, {"source": "rep_20261109_短線焦點產業_光通訊相關族群", "target": "tck_聯亞_3081", "relation": "研究分析", "description": "摘要：AI需求帶動光通訊升級，全新、聯亞、聯鈞受惠CPO商機。"}, {"source": "tck_聯亞_3081", "target": "ind_optical", "relation": "產業歸屬", "description": ""}, {"source": "rep_20261109_短線焦點產業_光通訊相關族群", "target": "tck_光聖_6442", "relation": "研究分析", "description": "摘要：AI需求帶動光通訊升級，全新、聯亞、聯鈞受惠CPO商機。"}, {"source": "tck_光聖_6442", "target": "ind_optical", "relation": "產業歸屬", "description": ""}, {"source": "rep_20261109_短線焦點產業_光通訊相關族群", "target": "tck_聯鈞_3450", "relation": "研究分析", "description": "摘要：AI需求帶動光通訊升級，全新、聯亞、聯鈞受惠CPO商機。"}, {"source": "tck_聯鈞_3450", "target": "ind_optical", "relation": "產業歸屬", "description": ""}, {"source": "rep_20261109_短線焦點產業_光通訊相關族群", "target": "tck_華星光_4979", "relation": "研究分析", "description": "摘要：AI需求帶動光通訊升級，全新、聯亞、聯鈞受惠CPO商機。"}, {"source": "tck_華星光_4979", "target": "ind_optical", "relation": "產業歸屬", "description": ""}, {"source": "mkt_tw", "target": "rep_20261110_玉山投顧_十月份台股交易結構追蹤", "relation": "涵蓋報告", "description": ""}, {"source": "rep_20261110_玉山投顧_十月份台股交易結構追蹤", "target": "tck_市場週轉率", "relation": "研究分析", "description": "摘要：10月大盤成交額增至18.5兆，週轉率升，散戶開戶續創新高。"}, {"source": "rep_20261110_玉山投顧_十月份台股交易結構追蹤", "target": "tck_開戶人數", "relation": "研究分析", "description": "摘要：10月大盤成交額增至18.5兆，週轉率升，散戶開戶續創新高。"}, {"source": "rep_20261110_玉山投顧_十月份台股交易結構追蹤", "target": "tck_外資買賣", "relation": "研究分析", "description": "摘要：10月大盤成交額增至18.5兆，週轉率升，散戶開戶續創新高。"}, {"source": "rep_20261110_玉山投顧_十月份台股交易結構追蹤", "target": "tck_投信動向", "relation": "研究分析", "description": "摘要：10月大盤成交額增至18.5兆，週轉率升，散戶開戶續創新高。"}, {"source": "rep_20261110_玉山投顧_十月份台股交易結構追蹤", "target": "tck_自然人散戶", "relation": "研究分析", "description": "摘要：10月大盤成交額增至18.5兆，週轉率升，散戶開戶續創新高。"}, {"source": "mkt_tw", "target": "rep_20261110_玉山投顧_台股晨訊", "relation": "涵蓋報告", "description": ""}, {"source": "rep_20261110_玉山投顧_台股晨訊", "target": "tck_加權指數", "relation": "研究分析", "description": "摘要：費半強彈帶動台股暴漲1960點收復4萬點，塑膠電子領軍。"}, {"source": "rep_20261110_玉山投顧_台股晨訊", "target": "tck_台積電_2330", "relation": "研究分析", "description": "摘要：費半強彈帶動台股暴漲1960點收復4萬點，塑膠電子領軍。"}, {"source": "tck_台積電_2330", "target": "ind_semi", "relation": "產業歸屬", "description": ""}, {"source": "rep_20261110_玉山投顧_台股晨訊", "target": "tck_融資餘額", "relation": "研究分析", "description": "摘要：費半強彈帶動台股暴漲1960點收復4萬點，塑膠電子領軍。"}, {"source": "rep_20261110_玉山投顧_台股晨訊", "target": "tck_外資賣超", "relation": "研究分析", "description": "摘要：費半強彈帶動台股暴漲1960點收復4萬點，塑膠電子領軍。"}, {"source": "rep_20261110_玉山投顧_台股晨訊", "target": "tck_塑膠股", "relation": "研究分析", "description": "摘要：費半強彈帶動台股暴漲1960點收復4萬點，塑膠電子領軍。"}, {"source": "rep_20261110_玉山投顧_台股晨訊", "target": "tck_電子權值", "relation": "研究分析", "description": "摘要：費半強彈帶動台股暴漲1960點收復4萬點，塑膠電子領軍。"}, {"source": "mkt_tw", "target": "rep_20261110_玉山投顧_台股當沖速報", "relation": "涵蓋報告", "description": ""}, {"source": "rep_20261110_玉山投顧_台股當沖速報", "target": "tck_當沖熱門標的", "relation": "研究分析", "description": "摘要：大盤強彈近2千點，當沖量占24.8%、成交值占比逾42%。"}, {"source": "rep_20261110_玉山投顧_台股當沖速報", "target": "tck_當沖週轉率", "relation": "研究分析", "description": "摘要：大盤強彈近2千點，當沖量占24.8%、成交值占比逾42%。"}, {"source": "rep_20261110_玉山投顧_台股當沖速報", "target": "tck_加權指數", "relation": "研究分析", "description": "摘要：大盤強彈近2千點，當沖量占24.8%、成交值占比逾42%。"}, {"source": "rep_20261110_玉山投顧_台股當沖速報", "target": "tck_當沖成交值", "relation": "研究分析", "description": "摘要：大盤強彈近2千點，當沖量占24.8%、成交值占比逾42%。"}, {"source": "rep_20261110_玉山投顧_塑化產品報價與利差週報", "target": "tck_台塑_1301", "relation": "研究分析", "description": "摘要：上游乙烯抗跌，下游PP價揚利差擴大，台塑營運相對受惠。"}, {"source": "tck_台塑_1301", "target": "ind_chemical", "relation": "產業歸屬", "description": ""}, {"source": "rep_20261110_玉山投顧_塑化產品報價與利差週報", "target": "tck_乙烯", "relation": "研究分析", "description": "摘要：上游乙烯抗跌，下游PP價揚利差擴大，台塑營運相對受惠。"}, {"source": "tck_乙烯", "target": "ind_chemical", "relation": "產業歸屬", "description": ""}, {"source": "rep_20261110_玉山投顧_塑化產品報價與利差週報", "target": "tck_丙烯", "relation": "研究分析", "description": "摘要：上游乙烯抗跌，下游PP價揚利差擴大，台塑營運相對受惠。"}, {"source": "tck_丙烯", "target": "ind_chemical", "relation": "產業歸屬", "description": ""}, {"source": "rep_20261110_玉山投顧_塑化產品報價與利差週報", "target": "tck_VCM", "relation": "研究分析", "description": "摘要：上游乙烯抗跌，下游PP價揚利差擴大，台塑營運相對受惠。"}, {"source": "tck_VCM", "target": "ind_chemical", "relation": "產業歸屬", "description": ""}, {"source": "rep_20261110_玉山投顧_塑化產品報價與利差週報", "target": "tck_PVC", "relation": "研究分析", "description": "摘要：上游乙烯抗跌，下游PP價揚利差擴大，台塑營運相對受惠。"}, {"source": "tck_PVC", "target": "ind_chemical", "relation": "產業歸屬", "description": ""}, {"source": "rep_20261110_玉山投顧_塑化產品報價與利差週報", "target": "tck_PP", "relation": "研究分析", "description": "摘要：上游乙烯抗跌，下游PP價揚利差擴大，台塑營運相對受惠。"}, {"source": "tck_PP", "target": "ind_chemical", "relation": "產業歸屬", "description": ""}, {"source": "mkt_jp", "target": "rep_20261110_玉山投顧_日股晨訊", "relation": "涵蓋報告", "description": ""}, {"source": "rep_20261110_玉山投顧_日股晨訊", "target": "tck_日經225", "relation": "研究分析", "description": "摘要：日經大漲1340點收58775點，東證收復季線，半導體領漲。"}, {"source": "rep_20261110_玉山投顧_日股晨訊", "target": "tck_東證指數", "relation": "研究分析", "description": "摘要：日經大漲1340點收58775點，東證收復季線，半導體領漲。"}, {"source": "rep_20261110_玉山投顧_日股晨訊", "target": "tck_索尼_Sony", "relation": "研究分析", "description": "摘要：日經大漲1340點收58775點，東證收復季線，半導體領漲。"}, {"source": "rep_20261110_玉山投顧_日股晨訊", "target": "tck_日立製作所", "relation": "研究分析", "description": "摘要：日經大漲1340點收58775點，東證收復季線，半導體領漲。"}, {"source": "rep_20261110_玉山投顧_日股晨訊", "target": "tck_KokusaiElectric", "relation": "研究分析", "description": "摘要：日經大漲1340點收58775點，東證收復季線，半導體領漲。"}, {"source": "mkt_hk_cn", "target": "rep_20261110_玉山投顧_港股晨訊", "relation": "涵蓋報告", "description": ""}, {"source": "rep_20261110_玉山投顧_港股晨訊", "target": "tck_恆生指數", "relation": "研究分析", "description": "摘要：恆生指數微跌收24448點區間震盪，上證收紅觀望政策。"}, {"source": "rep_20261110_玉山投顧_港股晨訊", "target": "tck_恆生國企", "relation": "研究分析", "description": "摘要：恆生指數微跌收24448點區間震盪，上證收紅觀望政策。"}, {"source": "rep_20261110_玉山投顧_港股晨訊", "target": "tck_上證指數", "relation": "研究分析", "description": "摘要：恆生指數微跌收24448點區間震盪，上證收紅觀望政策。"}, {"source": "rep_20261110_玉山投顧_港股晨訊", "target": "tck_滬深300", "relation": "研究分析", "description": "摘要：恆生指數微跌收24448點區間震盪，上證收紅觀望政策。"}, {"source": "rep_20261110_玉山投顧_港股晨訊", "target": "tck_長鑫存儲_CXMT", "relation": "研究分析", "description": "摘要：恆生指數微跌收24448點區間震盪，上證收紅觀望政策。"}, {"source": "rep_20261110_玉山投顧_港股晨訊", "target": "tck_韋爾股份", "relation": "研究分析", "description": "摘要：恆生指數微跌收24448點區間震盪，上證收紅觀望政策。"}, {"source": "mkt_tw", "target": "rep_20261110_玉山投顧_研究報告_8081致新_中立_維持", "relation": "涵蓋報告", "description": ""}, {"source": "rep_20261110_玉山投顧_研究報告_8081致新_中立_維持", "target": "tck_致新_8081", "relation": "研究分析", "description": "摘要：致新PMIC競爭大，NB需求平穩，維持中立與目標價270。"}, {"source": "tck_致新_8081", "target": "ind_semi", "relation": "產業歸屬", "description": ""}, {"source": "rep_20261110_玉山投顧_研究報告_8081致新_中立_維持", "target": "tck_電源管理IC_PMIC", "relation": "研究分析", "description": "摘要：致新PMIC競爭大，NB需求平穩，維持中立與目標價270。"}, {"source": "rep_20261110_玉山投顧_研究報告_8081致新_中立_維持", "target": "tck_PC_NB應用", "relation": "研究分析", "description": "摘要：致新PMIC競爭大，NB需求平穩，維持中立與目標價270。"}, {"source": "rep_20261110_玉山投顧_研究報告_8081致新_中立_維持", "target": "tck_毛利率", "relation": "研究分析", "description": "摘要：致新PMIC競爭大，NB需求平穩，維持中立與目標價270。"}, {"source": "rep_20261110_玉山投顧_研究報告_8081致新_中立_維持", "target": "tck_目標價270元", "relation": "研究分析", "description": "摘要：致新PMIC競爭大，NB需求平穩，維持中立與目標價270。"}, {"source": "mkt_us", "target": "rep_20261110_玉山投顧_美股晨訊", "relation": "涵蓋報告", "description": ""}, {"source": "rep_20261110_玉山投顧_美股晨訊", "target": "tck_道瓊工業", "relation": "研究分析", "description": "摘要：費半狂飆6.9%、那指漲2.7%，科技巨頭領軍報復性反彈。"}, {"source": "rep_20261110_玉山投顧_美股晨訊", "target": "tck_S_P500", "relation": "研究分析", "description": "摘要：費半狂飆6.9%、那指漲2.7%，科技巨頭領軍報復性反彈。"}, {"source": "rep_20261110_玉山投顧_美股晨訊", "target": "tck_NASDAQ", "relation": "研究分析", "description": "摘要：費半狂飆6.9%、那指漲2.7%，科技巨頭領軍報復性反彈。"}, {"source": "rep_20261110_玉山投顧_美股晨訊", "target": "tck_費城半導體", "relation": "研究分析", "description": "摘要：費半狂飆6.9%、那指漲2.7%，科技巨頭領軍報復性反彈。"}, {"source": "tck_費城半導體", "target": "ind_semi", "relation": "產業歸屬", "description": ""}, {"source": "rep_20261110_玉山投顧_美股晨訊", "target": "tck_蘋果_AAPL", "relation": "研究分析", "description": "摘要：費半狂飆6.9%、那指漲2.7%，科技巨頭領軍報復性反彈。"}, {"source": "rep_20261110_玉山投顧_美股晨訊", "target": "tck_輝達_NVDA", "relation": "研究分析", "description": "摘要：費半狂飆6.9%、那指漲2.7%，科技巨頭領軍報復性反彈。"}, {"source": "rep_20261110_玉山投顧_美股晨訊", "target": "tck_微軟_MSFT", "relation": "研究分析", "description": "摘要：費半狂飆6.9%、那指漲2.7%，科技巨頭領軍報復性反彈。"}, {"source": "mkt_tw", "target": "rep_20261110台股_投資快訊_今日五檔焦點股", "relation": "涵蓋報告", "description": ""}, {"source": "rep_20261110台股_投資快訊_今日五檔焦點股", "target": "tck_世芯_KY_3661", "relation": "研究分析", "description": "摘要：世芯、營邦、聯發科、中砂、群聯獲利看增，技術面轉強反彈。"}, {"source": "tck_世芯_KY_3661", "target": "ind_semi", "relation": "產業歸屬", "description": ""}, {"source": "rep_20261110台股_投資快訊_今日五檔焦點股", "target": "tck_營邦_3693", "relation": "研究分析", "description": "摘要：世芯、營邦、聯發科、中砂、群聯獲利看增，技術面轉強反彈。"}, {"source": "tck_營邦_3693", "target": "ind_ai_server", "relation": "產業歸屬", "description": ""}, {"source": "rep_20261110台股_投資快訊_今日五檔焦點股", "target": "tck_聯發科_2454", "relation": "研究分析", "description": "摘要：世芯、營邦、聯發科、中砂、群聯獲利看增，技術面轉強反彈。"}, {"source": "tck_聯發科_2454", "target": "ind_semi", "relation": "產業歸屬", "description": ""}, {"source": "rep_20261110台股_投資快訊_今日五檔焦點股", "target": "tck_中砂_1560", "relation": "研究分析", "description": "摘要：世芯、營邦、聯發科、中砂、群聯獲利看增，技術面轉強反彈。"}, {"source": "tck_中砂_1560", "target": "ind_semi", "relation": "產業歸屬", "description": ""}, {"source": "rep_20261110台股_投資快訊_今日五檔焦點股", "target": "tck_群聯_8299", "relation": "研究分析", "description": "摘要：世芯、營邦、聯發科、中砂、群聯獲利看增，技術面轉強反彈。"}, {"source": "tck_群聯_8299", "target": "ind_semi", "relation": "產業歸屬", "description": ""}, {"source": "thm_nsf", "target": "rep_20261109_玉山投顧_台股(含期權)盤後分析", "relation": "核心驅動力", "description": ""}, {"source": "thm_nsf", "target": "rep_20261110_玉山投顧_台股晨訊", "relation": "核心驅動力", "description": ""}, {"source": "thm_2nm_3nm", "target": "tck_世芯_KY_3661_", "relation": "關鍵成長引擎", "description": ""}, {"source": "thm_2nm_3nm", "target": "tck_中砂_1560_", "relation": "關鍵成長引擎", "description": ""}, {"source": "thm_2nm_3nm", "target": "tck_聯發科_2454_", "relation": "關鍵成長引擎", "description": ""}, {"source": "thm_cpo", "target": "ind_optical", "relation": "關鍵技術演進", "description": ""}, {"source": "thm_dt_heat", "target": "rep_20261110_玉山投顧_台股當沖速報", "relation": "核心論點", "description": ""}, {"source": "thm_dt_heat", "target": "rep_20261110_玉山投顧_十月份台股交易結構追蹤", "relation": "核心論點", "description": ""}, {"source": "thm_us_bounce", "target": "rep_20261110_玉山投顧_美股晨訊", "relation": "核心走勢", "description": ""}, {"source": "thm_cn_deflation", "target": "rep_20261109_玉山投顧_市場快訊_簡評中國10月CPI_PPI", "relation": "宏觀結論", "description": ""}]};
+    const chartDom = document.getElementById('main');
+    const myChart = echarts.init(chartDom);
+
+    const categories = graphData.categories;
+    const colorMap = {
+      "市場板塊": "#1976D2",
+      "投顧報告": "#7B1FA2",
+      "產業族群": "#388E3C",
+      "核心標的": "#F57C00",
+      "投資觀點": "#D32F2F"
+    };
+
+    const formattedNodes = graphData.nodes.map(n => ({
+      id: n.id,
+      name: n.name,
+      category: n.category,
+      symbolSize: n.value,
+      value: n.value,
+      description: n.description,
+      link: n.link,
+      itemStyle: {
+        color: colorMap[n.category] || '#94a3b8',
+        borderColor: '#ffffff',
+        borderWidth: n.category === '投顧報告' ? 2 : 1
+      },
+      label: {
+        show: n.value > 18,
+        fontSize: n.value > 25 ? 12 : 10,
+        color: '#f8fafc'
+      }
+    }));
+
+    const formattedLinks = graphData.links.map(l => ({
+      source: l.source,
+      target: l.target,
+      label: {
+        show: false,
+        formatter: l.relation,
+        fontSize: 9,
+        color: '#94a3b8'
+      },
+      lineStyle: {
+        color: '#475569',
+        curveness: 0.15,
+        width: 1.2,
+        opacity: 0.7
+      }
+    }));
+
+    const option = {
+      backgroundColor: '#0f172a',
+      tooltip: {
+        trigger: 'item',
+        formatter: function (params) {
+          if (params.dataType === 'node') {
+            return `<b>[${params.data.category}] ${params.data.name}</b><br/>${params.data.description || ''}`;
+          } else if (params.dataType === 'edge') {
+            return `<b>關係：${params.data.relation || '關聯'}</b><br/>${params.data.description || ''}`;
+          }
+        }
+      },
+      series: [{
+        type: 'graph',
+        layout: 'force',
+        data: formattedNodes,
+        links: formattedLinks,
+        categories: categories,
+        roam: true,
+        label: {
+          position: 'right',
+          formatter: '{b}'
+        },
+        labelLayout: {
+          hideOverlap: true
+        },
+        scaleLimit: {
+          min: 0.4,
+          max: 4
+        },
+        lineStyle: {
+          color: 'source',
+          curveness: 0.2
+        },
+        emphasis: {
+          focus: 'adjacency',
+          lineStyle: {
+            width: 3.5,
+            color: '#38bdf8'
+          }
+        },
+        force: {
+          repulsion: 260,
+          edgeLength: [60, 140],
+          gravity: 0.12
+        }
+      }]
+    };
+
+    myChart.setOption(option);
+
+    window.addEventListener('resize', () => myChart.resize());
+
+    // Click handler for details panel
+    myChart.on('click', function (params) {
+      if (params.dataType === 'node') {
+        showNodeDetails(params.data);
+      }
+    });
+
+    function showNodeDetails(data) {
+      const panel = document.getElementById('details-panel');
+      let linkBtn = '';
+      if (data.link) {
+        linkBtn = `<a href="../${data.link}" target="_blank" class="detail-btn">📄 開啟完整 Markdown 文檔</a>`;
+      }
+      panel.innerHTML = `
+        <div class="detail-card">
+          <span class="detail-tag" style="background: ${colorMap[data.category]}">${data.category}</span>
+          <div class="detail-title">${data.name}</div>
+          ${data.description ? `<div class="detail-summary"><b>摘要 / 說明：</b><br/>${data.description}</div>` : ''}
+          ${linkBtn}
+        </div>
+      `;
+    }
+
+    // Filter pills
+    document.querySelectorAll('.filter-pills .pill').forEach(pill => {
+      pill.addEventListener('click', function() {
+        document.querySelectorAll('.filter-pills .pill').forEach(p => p.classList.remove('active'));
+        this.classList.add('active');
+        const cat = this.getAttribute('data-category');
+        
+        const filteredNodes = formattedNodes.map(n => {
+          const isMatch = (cat === 'ALL' || n.category === cat);
+          return {
+            ...n,
+            itemStyle: {
+              ...n.itemStyle,
+              opacity: isMatch ? 1 : 0.15
+            },
+            label: {
+              ...n.label,
+              show: isMatch && n.value > 18
+            }
+          };
+        });
+
+        myChart.setOption({
+          series: [{
+            data: filteredNodes
+          }]
+        });
+      });
+    });
+
+    // Search bar
+    document.getElementById('searchInput').addEventListener('input', function(e) {
+      const term = e.target.value.trim().toLowerCase();
+      if (!term) {
+        myChart.setOption({ series: [{ data: formattedNodes }] });
+        return;
+      }
+      const searchNodes = formattedNodes.map(n => {
+        const isMatch = n.name.toLowerCase().includes(term) || (n.description && n.description.toLowerCase().includes(term));
+        return {
+          ...n,
+          itemStyle: {
+            ...n.itemStyle,
+            opacity: isMatch ? 1 : 0.1
+          },
+          label: {
+            ...n.label,
+            show: isMatch
+          }
+        };
+      });
+      myChart.setOption({ series: [{ data: searchNodes }] });
+    });
+  </script>
+</body>
+</html>
